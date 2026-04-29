@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Giao tuyến Ellipsoid & Trụ Parabol</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #0f0f1a; color: #e0e0e0; min-height: 100vh; display: flex; flex-direction: column; }
+    h1 { text-align: center; font-size: 16px; font-weight: 500; padding: 12px 16px 0; color: #a0a0c0; letter-spacing: 0.5px; }
+    #canvas-wrap { width: 100%; flex: 1; min-height: 500px; position: relative; overflow: hidden; }
+    canvas { display: block; width: 100%; height: 100%; }
+    #controls { padding: 12px 20px 16px; display: flex; flex-direction: column; gap: 10px; background: #0f0f1a; border-top: 1px solid #1e1e33; }
+    .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .param-group { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 200px; }
+    .param-group label { font-size: 13px; color: #8888aa; min-width: 22px; }
+    .param-group input[type=range] { flex: 1; accent-color: #6677ff; }
+    .num-input {
+      width: 68px; padding: 3px 7px;
+      background: #1a1a30; border: 1px solid #2a2a50;
+      border-radius: 5px; color: #dde;
+      font-size: 13px; font-weight: 600;
+      text-align: right; outline: none;
+      transition: border-color 0.15s, background 0.15s;
+      -moz-appearance: textfield;
+    }
+    .num-input::-webkit-outer-spin-button,
+    .num-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .num-input:focus { border-color: #5566cc; background: #1e1e3a; }
+    .num-input.error { border-color: #cc4444 !important; background: #2a1818; }
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    button {
+      font-size: 12px; padding: 5px 14px;
+      border-radius: 6px; border: 1px solid #2a2a44;
+      background: #1a1a2e; color: #c0c0e0; cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    button:hover { background: #252545; }
+    button.active { background: #2a2a55; border-color: #5566cc; }
+    .legend { display: flex; gap: 16px; flex-wrap: wrap; }
+    .leg { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #8888aa; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .info-box {
+      font-size: 12px; color: #9999bb; background: #161625; border-radius: 6px;
+      padding: 8px 14px; line-height: 1.7; font-family: 'Courier New', monospace;
+      border: 1px solid #1e1e33;
+    }
+    .info-box span { color: #dde; font-weight: 600; }
+    .formula {
+      font-size: 12px; color: #7788cc; background: #12121f; border-radius: 6px;
+      padding: 8px 14px; border: 1px solid #1e1e2a;
+      font-family: 'Courier New', monospace; line-height: 1.9;
+    }
+    .hint { font-size: 11px; color: #555577; text-align: center; padding: 2px 0; }
+    .kbd { display: inline-block; background: #1e1e30; border: 1px solid #3a3a55; border-radius: 3px; padding: 0 4px; font-size: 10px; color: #8888bb; font-family: monospace; }
+  </style>
+</head>
+<body>
+  <h1>Giao tuyến Ellipsoid &amp; Trụ Parabol &nbsp;—&nbsp; Hàm vector r(t)</h1>
+  <div id="canvas-wrap"><canvas id="c"></canvas></div>
+  <div id="controls">
+    <div class="formula">
+      r(t) = ( t , t² , ±c·√(1 − t²/a² − t⁴/b²) ) &nbsp;&nbsp;|&nbsp;&nbsp; Ellipsoid: x²/a² + y²/b² + z²/c² = 1 &nbsp;&nbsp;|&nbsp;&nbsp; Trụ: y = x²
+    </div>
+    <div class="row">
+      <div class="param-group">
+        <label>a =</label>
+        <input type="range"  id="sa" min="0.1" max="100" step="0.1" value="2">
+        <input type="number" id="na" class="num-input" min="0.1" max="100" step="0.1" value="2" title="Nhập a rồi Enter">
+      </div>
+      <div class="param-group">
+        <label>b =</label>
+        <input type="range"  id="sb" min="0.1" max="100" step="0.1" value="1.5">
+        <input type="number" id="nb" class="num-input" min="0.1" max="100" step="0.1" value="1.5" title="Nhập b rồi Enter">
+      </div>
+      <div class="param-group">
+        <label>c =</label>
+        <input type="range"  id="sc" min="0.1" max="100" step="0.1" value="2">
+        <input type="number" id="nc" class="num-input" min="0.1" max="100" step="0.1" value="2" title="Nhập c rồi Enter">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button id="btnAnim" class="active">⏸ Dừng chuyển động</button>
+      <button id="btnEll"  class="active">Ellipsoid: Bật</button>
+      <button id="btnCyl"  class="active">Mặt trụ: Bật</button>
+      <button id="btnVec"  class="active">Vector: Bật</button>
+      <button id="btnReset">↺ Reset góc nhìn</button>
+    </div>
+    <div class="legend">
+      <div class="leg"><div class="dot" style="background:#ff6b6b"></div>Giao tuyến nhánh trên (z &gt; 0)</div>
+      <div class="leg"><div class="dot" style="background:#4ecdc4"></div>Giao tuyến nhánh dưới (z &lt; 0)</div>
+      <div class="leg"><div class="dot" style="background:#ffe66d"></div>Vận tốc r'(t)</div>
+      <div class="leg"><div class="dot" style="background:#ff9f43"></div>Gia tốc tiếp tuyến aT</div>
+      <div class="leg"><div class="dot" style="background:#a29bfe"></div>Gia tốc pháp tuyến aN</div>
+    </div>
+    <div class="info-box" id="info">Đang khởi động...</div>
+    <p class="hint">Kéo chuột để xoay · Scroll để zoom · Kéo thanh trượt hoặc <strong>gõ số vào ô → nhấn <span class="kbd">Enter</span></strong> · <span class="kbd">Esc</span> để huỷ · Giá trị: 0.1 → 100</p>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+    const canvas = document.getElementById('c');
+    const wrap   = document.getElementById('canvas-wrap');
+
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setClearColor(0x0a0a14, 1);
+
+    const scene  = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 10000);
+    camera.position.set(5, 3.5, 6);
+    camera.lookAt(0, 0, 0);
+
+    function resize() {
+      const w = wrap.clientWidth, h = wrap.clientHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+    const dl = new THREE.DirectionalLight(0xffffff, 0.8);
+    dl.position.set(5, 8, 5); scene.add(dl);
+
+    // ── Params ───────────────────────────────────────────────────────
+    let A=2, B=1.5, C=2;
+    let showEll=true, showCyl=true, showVec=true, animating=true;
+    let ellipsoid, cylinder, curve1, curve2, particle1, particle2;
+    let velArrow, tanArrow, normArrow;
+    let tParam=0, clock=0;
+    let gridObj=null, axisGroup=null;
+
+    // ── Math ─────────────────────────────────────────────────────────
+    function getPoint(t, sign) {
+      const inner = 1 - t*t/(A*A) - Math.pow(t,4)/(B*B);
+      if (inner < 0) return null;
+      return new THREE.Vector3(t, sign * C * Math.sqrt(inner), t*t);
+    }
+    function deriv1(t, sign, dt=0.001) {
+      const a=getPoint(t-dt,sign), b=getPoint(t+dt,sign);
+      if (!a||!b) return new THREE.Vector3();
+      return b.clone().sub(a).divideScalar(2*dt);
+    }
+    function deriv2(t, sign, dt=0.001) {
+      const a=getPoint(t-dt,sign), b=getPoint(t,sign), cc=getPoint(t+dt,sign);
+      if (!a||!b||!cc) return new THREE.Vector3();
+      return a.clone().add(cc).sub(b.clone().multiplyScalar(2)).divideScalar(dt*dt);
+    }
+    function tRange() {
+      let lo=0, hi=A;
+      for (let i=0;i<80;i++) {
+        const mid=(lo+hi)/2;
+        1 - mid*mid/(A*A) - Math.pow(mid,4)/(B*B) >= 0 ? lo=mid : hi=mid;
+      }
+      return lo*0.995;
+    }
+
+    // ── Build scene decorations (grid + axes, adaptive) ───────────────
+    function buildDecor() {
+      if (gridObj)   scene.remove(gridObj);
+      if (axisGroup) scene.remove(axisGroup);
+      const mp  = Math.max(A, B, C);
+      const gs  = Math.ceil(mp * 2.8 / 5) * 5;
+      const div = Math.min(Math.max(8, gs), 40);
+      gridObj = new THREE.GridHelper(gs, div, 0x1a1a44, 0x131330);
+      scene.add(gridObj);
+      const axLen = mp * 1.6;
+      axisGroup = new THREE.Group();
+      const mkAx = (dir, col) => {
+        const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), dir.clone().multiplyScalar(axLen)]);
+        return new THREE.Line(g, new THREE.LineBasicMaterial({ color: col }));
+      };
+      axisGroup.add(mkAx(new THREE.Vector3(1,0,0), 0x884444));
+      axisGroup.add(mkAx(new THREE.Vector3(0,1,0), 0x448844));
+      axisGroup.add(mkAx(new THREE.Vector3(0,0,1), 0x444488));
+      scene.add(axisGroup);
+    }
+
+    // ── Build 3-D objects ─────────────────────────────────────────────
+    function buildEllipsoid() {
+      if (ellipsoid) scene.remove(ellipsoid);
+      const geo = new THREE.SphereGeometry(1, 56, 40);
+      geo.applyMatrix4(new THREE.Matrix4().makeScale(A, C, B));
+      ellipsoid = new THREE.Group();
+      ellipsoid.add(new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ color:0x2255cc, transparent:true, opacity:0.18, side:THREE.DoubleSide })));
+      ellipsoid.add(new THREE.Mesh(geo.clone(), new THREE.MeshBasicMaterial({ color:0x4477ee, wireframe:true, transparent:true, opacity:0.10 })));
+      ellipsoid.visible = showEll;
+      scene.add(ellipsoid);
+    }
+
+    function buildCylinder() {
+      if (cylinder) scene.remove(cylinder);
+      const N=50, Mz=40, xmax=A*1.15;
+      const verts=[];
+      for (let i=0;i<=N;i++) {
+        const x=-xmax+2*xmax*i/N, y=x*x;
+        for (let j=0;j<=Mz;j++) { const z=-C*1.4+2*C*1.4*j/Mz; verts.push(x,z,y); }
+      }
+      const geo=new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(verts,3));
+      const idx=[];
+      for (let i=0;i<N;i++) for (let j=0;j<Mz;j++) {
+        const a=i*(Mz+1)+j,b=a+1,c=(i+1)*(Mz+1)+j,d=c+1;
+        idx.push(a,b,c,b,d,c);
+      }
+      geo.setIndex(idx); geo.computeVertexNormals();
+      cylinder=new THREE.Group();
+      cylinder.add(new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ color:0x22cc66, transparent:true, opacity:0.14, side:THREE.DoubleSide })));
+      cylinder.add(new THREE.Mesh(geo.clone(), new THREE.MeshBasicMaterial({ color:0x44ee88, wireframe:true, transparent:true, opacity:0.08 })));
+      cylinder.visible=showCyl; scene.add(cylinder);
+    }
+
+    function buildCurves() {
+      [curve1,curve2,particle1,particle2].forEach(o=>{ if(o) scene.remove(o); });
+      const tmax=tRange(), N=300, pts1=[], pts2=[];
+      for (let i=0;i<=N;i++) {
+        const t=-tmax+2*tmax*i/N;
+        const p1=getPoint(t,1), p2=getPoint(t,-1);
+        if (p1) pts1.push(p1);
+        if (p2) pts2.push(p2);
+      }
+      const mkLine=(pts,col)=>new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(pts),
+        new THREE.LineBasicMaterial({color:col,linewidth:3})
+      );
+      curve1=mkLine(pts1,0xff6b6b); scene.add(curve1);
+      curve2=mkLine(pts2,0x4ecdc4); scene.add(curve2);
+      const r=Math.max(0.04, Math.min(A,B,C)*0.045);
+      const pg=new THREE.SphereGeometry(r,20,20);
+      particle1=new THREE.Mesh(pg,new THREE.MeshPhongMaterial({color:0xff6b6b,emissive:0xff2222,emissiveIntensity:0.6}));
+      particle2=new THREE.Mesh(pg.clone(),new THREE.MeshPhongMaterial({color:0x4ecdc4,emissive:0x00bbaa,emissiveIntensity:0.6}));
+      scene.add(particle1,particle2);
+    }
+
+    function mkArrow(color) {
+      const mat=new THREE.MeshBasicMaterial({color}), g=new THREE.Group();
+      const shaft=new THREE.Mesh(new THREE.CylinderGeometry(0.018,0.018,1,8),mat);
+      shaft.position.y=0.5; g.add(shaft);
+      const tip=new THREE.Mesh(new THREE.ConeGeometry(0.055,0.18,8),mat.clone());
+      tip.position.y=1.09; g.add(tip); return g;
+    }
+    function setArrow(arrow, origin, dir, scale=0.5) {
+      const len=dir.length();
+      if (len<0.0001) { arrow.visible=false; return; }
+      arrow.visible=showVec;
+      arrow.scale.set(1, Math.min(len*scale, Math.max(A,B,C)*0.7), 1);
+      arrow.position.copy(origin);
+      arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir.clone().normalize());
+    }
+    function buildArrows() {
+      [velArrow,tanArrow,normArrow].forEach(o=>{ if(o) scene.remove(o); });
+      velArrow=mkArrow(0xffe66d); scene.add(velArrow);
+      tanArrow=mkArrow(0xff9f43); scene.add(tanArrow);
+      normArrow=mkArrow(0xa29bfe); scene.add(normArrow);
+    }
+
+    function rebuild() {
+      buildDecor(); buildEllipsoid(); buildCylinder(); buildCurves(); buildArrows();
+      // Auto-fit camera
+      radius = Math.max(Math.max(A,B,C) * 3.2, 9);
+      updateCam();
+    }
+    rebuild();
+
+    // ── Info panel ────────────────────────────────────────────────────
+    function updateInfo(t) {
+      const p=getPoint(t,1); if (!p) return;
+      const vel=deriv1(t,1), acc=deriv2(t,1), spd=vel.length();
+      const T=spd>0.0001?vel.clone().normalize():new THREE.Vector3(0,1,0);
+      const aT=T.clone().multiplyScalar(acc.dot(T)), aN=acc.clone().sub(aT);
+      const cross=vel.clone().cross(acc), kappa=cross.length()/Math.pow(spd,3);
+      document.getElementById('info').innerHTML =
+        `t = <span>${t.toFixed(3)}</span> &nbsp;|&nbsp; ` +
+        `r(t) = (<span>${p.x.toFixed(3)}</span>, <span>${p.z.toFixed(3)}</span>, <span>${p.y.toFixed(3)}</span>) &nbsp;|&nbsp; ` +
+        `|r'(t)| = <span>${spd.toFixed(4)}</span> &nbsp;|&nbsp; ` +
+        `|aT| = <span>${aT.length().toFixed(4)}</span> &nbsp;|&nbsp; ` +
+        `|aN| = <span>${aN.length().toFixed(4)}</span> &nbsp;|&nbsp; ` +
+        `κ = <span>${isFinite(kappa)?kappa.toFixed(4):'∞'}</span>`;
+    }
+
+    // ── Param sync: slider ↔ number input ────────────────────────────
+    function applyParam(k, rawVal) {
+      const v = parseFloat(rawVal);
+      if (isNaN(v) || v < 0.1 || v > 100) return false;
+      const val = Math.round(v * 10) / 10;
+      if (k==='a') A=val;
+      if (k==='b') B=val;
+      if (k==='c') C=val;
+      document.getElementById('s'+k).value = val;
+      const ni = document.getElementById('n'+k);
+      ni.value = val;
+      ni.classList.remove('error');
+      rebuild();
+      return true;
+    }
+
+    ['a','b','c'].forEach(k => {
+      const slider = document.getElementById('s'+k);
+      const numInp = document.getElementById('n'+k);
+
+      // Slider → live update
+      slider.addEventListener('input', () => applyParam(k, slider.value));
+
+      // Number input: validate on every keystroke (colour only)
+      numInp.addEventListener('input', () => {
+        const v = parseFloat(numInp.value);
+        (isNaN(v) || v < 0.1 || v > 100)
+          ? numInp.classList.add('error')
+          : numInp.classList.remove('error');
+      });
+
+      // Commit on Enter or blur
+      function commit() {
+        if (!applyParam(k, numInp.value)) {
+          numInp.classList.add('error');
+        }
+      }
+      numInp.addEventListener('keydown', e => {
+        if (e.key === 'Enter')  { commit(); numInp.blur(); }
+        if (e.key === 'Escape') {
+          const cur = k==='a'?A : k==='b'?B : C;
+          numInp.value = cur;
+          numInp.classList.remove('error');
+          numInp.blur();
+        }
+      });
+      numInp.addEventListener('blur', commit);
+    });
+
+    // ── Orbit controls ────────────────────────────────────────────────
+    let isDrag=false, lastX=0, lastY=0, theta=0.6, phi=0.55, radius=9;
+    function updateCam() {
+      camera.position.set(
+        radius*Math.sin(phi)*Math.sin(theta),
+        radius*Math.cos(phi),
+        radius*Math.sin(phi)*Math.cos(theta)
+      );
+      camera.lookAt(0,0,0);
+    }
+    updateCam();
+    wrap.addEventListener('mousedown', e=>{ isDrag=true; lastX=e.clientX; lastY=e.clientY; });
+    window.addEventListener('mouseup', ()=>isDrag=false);
+    window.addEventListener('mousemove', e=>{
+      if (!isDrag) return;
+      theta-=(e.clientX-lastX)*0.01;
+      phi=Math.max(0.08,Math.min(Math.PI-0.08,phi+(e.clientY-lastY)*0.01));
+      lastX=e.clientX; lastY=e.clientY; updateCam();
+    });
+    wrap.addEventListener('wheel', e=>{
+      const maxR=Math.max(A,B,C)*10;
+      radius=Math.max(1, Math.min(maxR, radius+e.deltaY*0.04));
+      updateCam(); e.preventDefault();
+    },{passive:false});
+
+    let lastTouch=null;
+    wrap.addEventListener('touchstart', e=>{ lastTouch=e.touches[0]; },{passive:true});
+    wrap.addEventListener('touchmove', e=>{
+      if (!lastTouch||e.touches.length!==1) return;
+      const t=e.touches[0];
+      theta-=(t.clientX-lastTouch.clientX)*0.01;
+      phi=Math.max(0.08,Math.min(Math.PI-0.08,phi+(t.clientY-lastTouch.clientY)*0.01));
+      lastTouch=t; updateCam(); e.preventDefault();
+    },{passive:false});
+
+    // ── Buttons ───────────────────────────────────────────────────────
+    document.getElementById('btnAnim').addEventListener('click',function(){
+      animating=!animating;
+      this.textContent=animating?'⏸ Dừng chuyển động':'▶ Bắt đầu chuyển động';
+      this.classList.toggle('active',animating);
+    });
+    document.getElementById('btnEll').addEventListener('click',function(){
+      showEll=!showEll; if(ellipsoid) ellipsoid.visible=showEll;
+      this.textContent='Ellipsoid: '+(showEll?'Bật':'Tắt');
+      this.classList.toggle('active',showEll);
+    });
+    document.getElementById('btnCyl').addEventListener('click',function(){
+      showCyl=!showCyl; if(cylinder) cylinder.visible=showCyl;
+      this.textContent='Mặt trụ: '+(showCyl?'Bật':'Tắt');
+      this.classList.toggle('active',showCyl);
+    });
+    document.getElementById('btnVec').addEventListener('click',function(){
+      showVec=!showVec;
+      this.textContent='Vector: '+(showVec?'Bật':'Tắt');
+      this.classList.toggle('active',showVec);
+    });
+    document.getElementById('btnReset').addEventListener('click',()=>{
+      theta=0.6; phi=0.55;
+      radius=Math.max(Math.max(A,B,C)*3.2, 9);
+      updateCam();
+    });
+
+    // ── Render loop ───────────────────────────────────────────────────
+    function animate() {
+      requestAnimationFrame(animate);
+      if (animating) { clock+=0.008; tParam=tRange()*Math.sin(clock); }
+      const p1=getPoint(tParam,1), p2=getPoint(tParam,-1);
+      if (p1&&particle1) particle1.position.copy(p1);
+      if (p2&&particle2) particle2.position.copy(p2);
+      if (p1) {
+        const vel=deriv1(tParam,1), acc=deriv2(tParam,1), spd=vel.length();
+        const T=spd>0.0001?vel.clone().normalize():new THREE.Vector3(0,1,0);
+        const aT=T.clone().multiplyScalar(acc.dot(T)), aN=acc.clone().sub(aT);
+        setArrow(velArrow,p1,vel,0.45);
+        setArrow(tanArrow,p1,aT,1.4);
+        setArrow(normArrow,p1,aN,1.4);
+        if (!showVec) { velArrow.visible=false; tanArrow.visible=false; normArrow.visible=false; }
+        updateInfo(tParam);
+      }
+      renderer.render(scene,camera);
+    }
+    animate();
+  </script>
+</body>
+</html>
